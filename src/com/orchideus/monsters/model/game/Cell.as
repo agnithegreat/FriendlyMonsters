@@ -49,12 +49,25 @@ public class Cell extends EventDispatcher {
         return _block;
     }
 
-    public function Cell(x: int, y: int) {
+    private var _type: int;
+    public function get available():Boolean {
+        return _type>0;
+    }
+
+    public function get fillable():Boolean {
+        return _type>0 && !_gem;
+    }
+
+    public function Cell(x: int, y: int, type: int) {
         _position = new Point(x, y);
+        _type = type;
+        _block = _type>0 ? _type-1 : 0;
     }
 
     public function set block(val: int):void {
-        _block = val;
+        if (_type) {
+            _block = val;
+        }
     }
 
     public function setGem(gem: Gem, swap: Boolean = false, silent: Boolean = false):void {

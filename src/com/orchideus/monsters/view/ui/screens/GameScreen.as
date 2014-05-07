@@ -11,6 +11,7 @@ import com.orchideus.monsters.view.ui.screens.game.field.CellView;
 import com.orchideus.monsters.view.ui.screens.game.field.GemCounterView;
 import com.orchideus.monsters.view.ui.screens.game.field.GemView;
 import com.orchideus.monsters.view.ui.screens.game.panels.GameLeftPanel;
+import com.orchideus.monsters.view.ui.screens.game.panels.GameRightPanel;
 
 import flash.geom.Rectangle;
 
@@ -48,6 +49,7 @@ public class GameScreen extends Screen {
     private var _score: TextField;
 
     private var _leftPanel: GameLeftPanel;
+    private var _rightPanel: GameRightPanel;
 
     public function GameScreen(refs:CommonRefs, game: Game) {
         _game = game;
@@ -99,21 +101,28 @@ public class GameScreen extends Screen {
         _game.addEventListener(Game.NEW_GEM, handleNewGem);
 
         for (var i:int = 0; i < _game.field.length; i++) {
-            var c: CellView = new CellView(_refs, _game.field[i]);
-            _cells.addChild(c);
+            if (_game.field[i].available) {
+                var c: CellView = new CellView(_refs, _game.field[i]);
+                _cells.addChild(c);
 
-            var g: GemView = new GemView(_refs, _game.field[i].gem);
-            _gems.addChild(g);
+                var cu: CellUpperView = new CellUpperView(_refs, _game.field[i]);
+                _cellsUpper.addChild(cu);
+            }
 
-            var gc: GemCounterView = new GemCounterView(_refs, _game.field[i].gem);
-            _counters.addChild(gc);
+            if (_game.field[i].gem) {
+                var g: GemView = new GemView(_refs, _game.field[i].gem);
+                _gems.addChild(g);
 
-            var cu: CellUpperView = new CellUpperView(_refs, _game.field[i]);
-            _cellsUpper.addChild(cu);
+                var gc: GemCounterView = new GemCounterView(_refs, _game.field[i].gem);
+                _counters.addChild(gc);
+            }
         }
 
         _leftPanel = new GameLeftPanel(_refs, _game.counters);
         addChild(_leftPanel);
+
+        _rightPanel = new GameRightPanel(_refs, _game.bonuses);
+        addChild(_rightPanel);
     }
 
     private function handleUpdate(e: Event):void {

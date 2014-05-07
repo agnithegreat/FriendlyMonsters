@@ -64,7 +64,8 @@ public class ResourcesManager extends EventDispatcher {
         _loading++;
 
         _main.enqueue(
-            "config/config.json"
+            "config/config.json",
+            "levels/1.json"
         );
         _queue.push(_main);
     }
@@ -80,7 +81,8 @@ public class ResourcesManager extends EventDispatcher {
         }
         _gui.enqueue(
             "textures/"+_info.art+"/gui/gui.png",
-            "textures/"+_info.art+"/gui/gui.xml"
+            "textures/"+_info.art+"/gui/gui.xml",
+            "animations/Charry3.zip"
         );
         _queue.push(_gui);
 

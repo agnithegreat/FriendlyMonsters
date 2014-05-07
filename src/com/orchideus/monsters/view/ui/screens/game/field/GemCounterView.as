@@ -46,8 +46,8 @@ public class GemCounterView extends AbstractView {
         if (e && e.data) {
             Starling.juggler.tween(this, Gem.SWAP_TIME, {x: newX, y: newY});
         } else {
-            var delta: int = Math.abs(newY-y)/CellView.tileWidth;
-            Starling.juggler.tween(this, Gem.FALL_TIME*delta, {y: newY, transition: Transitions.EASE_OUT});
+            x = newX;
+            y = newY;
         }
     }
 

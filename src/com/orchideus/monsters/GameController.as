@@ -10,6 +10,7 @@ import com.orchideus.monsters.model.game.Game;
 import com.orchideus.monsters.model.Player;
 import com.orchideus.monsters.view.ui.UI;
 import com.orchideus.monsters.view.ui.screens.GameScreen;
+import com.orchideus.monsters.view.ui.screens.game.panels.BonusView;
 
 import starling.display.Stage;
 import starling.events.EnterFrameEvent;
@@ -50,6 +51,7 @@ public class GameController extends EventDispatcher {
 
         _ui = new UI(_refs, this);
         _ui.addEventListener(GameScreen.SELECT_CELL, handleSelectCell);
+        _ui.addEventListener(BonusView.SELECT_BONUS, handleSelectBonus);
         _stage.addChild(_ui);
     }
 
@@ -62,7 +64,7 @@ public class GameController extends EventDispatcher {
     }
 
     public function start():void {
-        _game.init(8, 8);
+        _game.init(_refs.main.getObject("1"));
     }
 
     private function handleEnterFrame(e: EnterFrameEvent):void {
@@ -75,6 +77,10 @@ public class GameController extends EventDispatcher {
 
     private function handleSelectCell(e: Event):void {
         _game.selectCell(e.data as Cell);
+    }
+
+    private function handleSelectBonus(e: Event):void {
+        _game.selectBonus(e.data as String);
     }
 }
 }

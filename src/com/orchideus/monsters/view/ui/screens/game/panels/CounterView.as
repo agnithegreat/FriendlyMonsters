@@ -43,8 +43,9 @@ public class CounterView extends AbstractView {
         _check.y = 45;
         addChild(_check);
 
-        _text = new TextField(_shape.width, 28, "", "game_counter_panel", -1, 0xFFFFFF);
+        _text = new TextField(_shape.width+20, 28, "", "game_counter_panel", -1, 0xFFFFFF);
         _text.hAlign = "center";
+        _text.x = -10;
         _text.y = 71;
         addChild(_text);
 

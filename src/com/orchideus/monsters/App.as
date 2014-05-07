@@ -8,8 +8,11 @@
 package com.orchideus.monsters {
 import com.agnither.utils.DeviceResInfo;
 import com.agnither.utils.ResourcesManager;
+import com.orchideus.monsters.data.BlockVO;
+import com.orchideus.monsters.data.BonusVO;
 import com.orchideus.monsters.data.GemVO;
 import com.orchideus.monsters.data.MultiplierVO;
+import com.orchideus.monsters.view.ui.Animations;
 
 import starling.core.Starling;
 import starling.display.Sprite;
@@ -61,12 +64,19 @@ public class App extends Sprite {
         var config: Object = _resources.main.getObject("config");
 
         GemVO.parse(config.gems);
+        BlockVO.parse(config.blocks);
         MultiplierVO.parse(config.multiplier);
+        BonusVO.parse(config.bonuses);
     }
 
     private function handleInit():void {
         _resources.removeEventListener(ResourcesManager.COMPLETE, handleInit);
 
+        Animations.init();
+        Animations.convert(_resources.gui.getByteArray("Charry3"), handleConvert);
+    }
+
+    private function handleConvert(e: * = null):void {
         _controller.ready();
     }
 }

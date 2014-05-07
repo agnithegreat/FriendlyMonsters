@@ -21,11 +21,6 @@ public class Gem extends EventDispatcher {
     public static const LIGHT: String = "light_Gem";
     public static const KILL: String = "kill_Gem";
 
-    // TODO: сделать механизм выдачи случайного гема с учетом заданного распределения
-    public static function getRandom(fall: Boolean):Gem {
-        return new Gem(1 + Math.random() * GemVO.amount, fall);
-    }
-
     private var _gem: GemVO;
     public function get type():String {
         return _gem.type;

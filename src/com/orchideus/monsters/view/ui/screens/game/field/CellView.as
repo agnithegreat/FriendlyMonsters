@@ -10,8 +10,8 @@ import starling.display.Image;
 
 public class CellView extends AbstractView {
 
-    public static var tileWidth: Number = 73.2;
-    public static var tileHeight: Number = 73.2;
+    public static var tileWidth: Number = 73;
+    public static var tileHeight: Number = 73;
 
     private var _cell: Cell;
     public function get cell():Cell {

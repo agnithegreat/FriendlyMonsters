@@ -6,6 +6,7 @@
  * To change this template use File | Settings | File Templates.
  */
 package com.orchideus.monsters.model.game {
+import com.orchideus.monsters.data.BonusVO;
 import com.orchideus.monsters.data.GemVO;
 
 import flash.geom.Point;
@@ -25,8 +26,8 @@ public class Game extends EventDispatcher {
     // TODO: вынести в конфиг
     public static var HINT_TIME: int = 5;
 
-    private var _width: int;
-    private var _height: int;
+    private static var width: int = 8;
+    private static var height: int = 8;
 
     private var _fieldObj: Object;
     private var _field: Vector.<Cell>;
@@ -41,17 +42,27 @@ public class Game extends EventDispatcher {
 
     private var _possibleMatch: Vector.<Gem>;
 
-//    private var _init: Boolean;
-
     private var _score: int;
     public function get score():int {
         return _score;
+    }
+
+    private var _gemTypes: GemTypesList;
+    public function getRandom(fall: Boolean):Gem {
+        return new Gem(_gemTypes.getRandom(), fall);
     }
 
     private var _counters: CountersList;
     public function get counters():CountersList {
         return _counters;
     }
+
+    private var _bonuses: BonusesList;
+    public function get bonuses():BonusesList {
+        return _bonuses;
+    }
+
+    private var _selectedBonus: String;
 
     private var _time: Number;
     private var _hintTime: Number;
@@ -63,24 +74,29 @@ public class Game extends EventDispatcher {
         return _delayedCalls>0;
     }
 
-    private var _afterFallStateChanged: Boolean;
-
     public function Game() {
         _juggler = new Juggler();
 
+        _gemTypes = new GemTypesList();
         _counters = new CountersList();
+        _bonuses = new BonusesList();
     }
 
-    public function init(width: int, height: int):void {
-        _width = width;
-        _height = height;
-
+    public function init(data: Object):void {
         _score = 0;
+
+        _gemTypes.init(data.types);
 
         // TODO: вынести ресурсы в конфиг
         _counters.addCounter(GemVO.GEMS[1].type, 50);
         _counters.addCounter(GemVO.GEMS[2].type, 50);
         _counters.addCounter(GemVO.GEMS[3].type, 50);
+
+        _bonuses.addBonus(BonusVO.BONUSES[1].name);
+        _bonuses.addBonus(BonusVO.BONUSES[2].name);
+        _bonuses.addBonus(BonusVO.BONUSES[3].name);
+        _bonuses.addBonus(BonusVO.BONUSES[4].name);
+        _bonuses.addBonus(BonusVO.BONUSES[5].name);
 
         _time = 0;
         _hintTime = 0;
@@ -90,15 +106,22 @@ public class Game extends EventDispatcher {
         _matches = new <Match>[];
         _possibleMatch = new <Gem>[];
 
-        createField();
+        createField(data.cells);
 
-        fillGems();
+        fillGems(data.gems);
 
         findMatches();
+        while (_matches.length==0) {
+            clearMatches();
+            shuffleField();
+            findMatches();
+        }
         while (_matches.length>0) {
             fixMatches();
             findMatches();
         }
+        clearMatches();
+
         findMoves();
 
         dispatchEventWith(INIT);
@@ -141,16 +164,13 @@ public class Game extends EventDispatcher {
         }
     }
 
-    private function createField():void {
+    private function createField(cells: Array):void {
         _field = new <Cell>[];
         _fieldObj = {};
-        for (var j:int = 0; j < _height; j++) {
-            for (var i:int = 0; i < _width; i++) {
-                var slot: Cell = new Cell(i, j);
 
-                if (Math.random() < 0.3) {
-                    slot.block = Math.random() * 4;
-                }
+        for (var j:int = 0; j < height; j++) {
+            for (var i:int = 0; i < width; i++) {
+                var slot: Cell = new Cell(i, j, cells[j*width + i]);
 
                 _field.push(slot);
                 _fieldObj[i+"."+j] = slot;
@@ -162,16 +182,22 @@ public class Game extends EventDispatcher {
         _availableMoves = new <Move>[];
         for (var i:int = 0; i < _field.length; i++) {
             var cell: Cell = _field[i];
-            if (cell.x < _width-2) {
+            if (cell.x < width-2) {
                 _availableMoves = _availableMoves.concat(checkTriple([cell, getCell(cell.x+1, cell.y), getCell(cell.x+2, cell.y)]));
             }
-            if (cell.y < _height-2) {
+            if (cell.y < height-2) {
                 _availableMoves = _availableMoves.concat(checkTriple([cell, getCell(cell.x, cell.y+1), getCell(cell.x, cell.y+2)]));
             }
         }
     }
 
     private function checkTriple(cells: Array):Vector.<Move> {
+        var moves: Vector.<Move> = new <Move>[];
+
+        if (!cells[0].type || !cells[1].type || !cells[2].type) {
+            return moves;
+        }
+
         cells.sortOn("type");
 
         var excess: Cell;
@@ -186,7 +212,6 @@ public class Game extends EventDispatcher {
             }
         }
 
-        var moves: Vector.<Move> = new <Move>[];
         if (excess && excess.block==0) {
             var neighbours: Vector.<Cell> = getNeighbours(excess);
             for (var i:int = 0; i < neighbours.length; i++) {
@@ -217,6 +242,7 @@ public class Game extends EventDispatcher {
             gem.light = true;
             _possibleMatch.push(gem);
         }
+        clearMatches();
         move.trySwap();
     }
 
@@ -227,12 +253,84 @@ public class Game extends EventDispatcher {
         }
     }
 
+    public function selectBonus(name: String):void {
+        if (busy) {
+            return;
+        }
+
+        if (_selectedBonus == name) {
+            _selectedBonus = null;
+        } else {
+            _selectedBonus = name;
+
+            var bonus: Bonus = _bonuses.getBonus(name);
+            if (bonus && bonus.instant) {
+                useBonus(name);
+            }
+        }
+    }
+
+    public function useBonus(name: String, cell: Cell = null):void {
+        hideHint();
+
+        var bonus: Bonus = _bonuses.getBonus(name);
+
+        switch (name) {
+            case BonusVO.REMOVE_GEM:
+                if (cell.gem) {
+                    addScore(cell.gem.points);
+                    _counters.addValue(cell.type, cell.gem.counter+1);
+                    cell.clear();
+                    delayedCall(fallGems, Gem.FALL_TIME);
+                    _selectedBonus = null;
+                }
+                break;
+
+            case BonusVO.REMOVE_ROW:
+                for (var i:int = 0; i < width; i++) {
+                    var c: Cell = getCell(i, cell.y);
+                    if (c.gem) {
+                        addScore(c.gem.points);
+                        _counters.addValue(c.type, c.gem.counter+1);
+                        c.clear();
+                    }
+                }
+                delayedCall(fallGems, Gem.FALL_TIME);
+                _selectedBonus = null;
+                break;
+
+            case BonusVO.ADD_COUNTER:
+                addCounters(bonus.counter);
+                _selectedBonus = null;
+                break;
+
+            case BonusVO.REMOVE_TYPE:
+                if (cell.type) {
+                    removeGemsOfType(cell.type);
+                    _selectedBonus = null;
+                    delayedCall(fallGems, Gem.FALL_TIME);
+                }
+                break;
+
+            case BonusVO.EMPTY:
+                shuffleField();
+                _selectedBonus = null;
+                checkField();
+                break;
+        }
+    }
+
     public function selectCell(cell: Cell):void {
         if (busy) {
             return;
         }
 
-        if (cell.block) {
+        if (_selectedBonus) {
+            useBonus(_selectedBonus, cell);
+            return;
+        }
+
+        if (!cell.gem || cell.block) {
             return;
         }
 
@@ -270,30 +368,30 @@ public class Game extends EventDispatcher {
     }
 
     private function checkField(byUser: Boolean = false):void {
+        // TODO: сделать проверку на наличие ингредиентов в списке клеток выхода
+
         findMatches();
         if (_matches.length>0) {
             removeMatches(byUser);
 
-            _afterFallStateChanged = false;
-            delayedCall(fallGems, Gem.KILL_TIME, _height-1);
+            delayedCall(fallGems, Gem.KILL_TIME);
         } else {
             findMoves();
 
             if (_availableMoves.length==0) {
-                resetField();
+                delayedCall(shuffleField, Gem.KILL_TIME);
+                delayedCall(checkField, Gem.KILL_TIME*2);
             }
         }
     }
 
     private function findMatches():void {
-        while (_matches.length > 0) {
-            _matches.pop().destroy();
-        }
+        clearMatches();
 
         // check vertical matches
         var match: Match;
-        for (var i:int = 0; i < _width; i++) {
-            for (var j:int = 0; j < _height; j++) {
+        for (var i:int = 0; i < width; i++) {
+            for (var j:int = 0; j < height; j++) {
                 var cell: Cell = getCell(i, j);
                 if (match && !match.addCell(cell)) {
                     if (match.amount >= 3) {
@@ -317,8 +415,8 @@ public class Game extends EventDispatcher {
         }
 
         // check horizontal matches
-        for (j = 0; j < _height; j++) {
-            for (i = 0; i < _width; i++) {
+        for (j = 0; j < height; j++) {
+            for (i = 0; i < width; i++) {
                 cell = getCell(i, j);
                 if (match && !match.addCell(cell)) {
                     if (match.amount >= 3) {
@@ -352,10 +450,29 @@ public class Game extends EventDispatcher {
         }
     }
 
+    private function clearMatches():void {
+        while (_matches.length > 0) {
+            _matches.pop().destroy();
+        }
+    }
+
     private function fixMatches():void {
-        for (var i:int = 0; i < _matches.length; i++) {
-            var match: Match = _matches[i];
-            match.cells[1].setGem(Gem.getRandom(false));
+        while (_matches.length>0) {
+            var match: Match = _matches.pop();
+            var rand: int = Math.random() * match.cells.length;
+            var change: Cell = match.cells[rand];
+            match.destroy();
+
+            var neighbours: Vector.<Cell> = getNeighbours(change);
+            var swapped: Boolean = false;
+            var l2: int = neighbours.length;
+            for (var j:int = 0; j < l2; j++) {
+                var neighbour: Cell = neighbours[j];
+                if (!swapped && neighbour.type && neighbour.type != change.type) {
+                    change.swap(neighbour, true);
+                    swapped = true;
+                }
+            }
         }
     }
 
@@ -420,7 +537,7 @@ public class Game extends EventDispatcher {
         for (i = 0; i < l; i++) {
             // TODO: вынести каунтеры в конфиг
             if (_counters.hasCounter(addTypeBonus[i])) {
-                addCountersOfType(addTypeBonus[i], 2);
+                addCounters(2, addTypeBonus[i]);
             }
         }
 
@@ -442,12 +559,18 @@ public class Game extends EventDispatcher {
         }
     }
 
-    private function addCountersOfType(type: String, value: int):void {
+    private function addCounters(value: int, type: String = null):void {
         var l: int = _field.length;
         for (var i:int = 0; i < l; i++) {
             var cell: Cell = _field[i];
-            if (cell.type == type) {
-                cell.gem.addCounter(value);
+            if (type) {
+                if (cell.type == type) {
+                    cell.gem.addCounter(value);
+                }
+            } else {
+                if (_counters.hasCounter(cell.type)) {
+                    cell.gem.addCounter(value);
+                }
             }
         }
     }
@@ -465,16 +588,13 @@ public class Game extends EventDispatcher {
         _counters.addValue(type, counters);
     }
 
-    private function fillGems():void {
-        if (!_field) {
-            return;
-        }
-
-        for (var i:int = 0; i < _width; i++) {
-            for (var j:int = 0; j < _height; j++) {
+    private function fillGems(gems: Array):void {
+        for (var i:int = 0; i < width; i++) {
+            for (var j:int = 0; j < height; j++) {
                 var cell: Cell = getCell(i, j);
-                if (!cell.gem) {
-                    var gem: Gem = Gem.getRandom(false);
+                if (cell && cell.fillable) {
+                    var g: int = gems[j*height+i];
+                    var gem: Gem = g ? new Gem(g, false) : getRandom(false);
                     cell.setGem(gem);
                     dispatchEventWith(NEW_GEM, false, gem);
                 }
@@ -482,112 +602,112 @@ public class Game extends EventDispatcher {
         }
     }
 
-    private function fallGems(row: int, retry: Boolean = false):void {
-        if (!_field) {
-            return;
-        }
-
-        var fall: Boolean;
+    private function fallGems():void {
         var refill: Boolean;
 
-        for (var i:int = 0; i < _width; i++) {
-            var cell: Cell = getCell(i, row);
-            var upper: Cell = cell;
-            if (!cell.gem) {
-                var swapped: Boolean = false;
-                while (upper && !upper.gem) {
-                    upper = getCell(upper.x, upper.y-1);
-                }
-                if (upper && upper.block==0) {
-                    cell.swap(upper);
-
-                    fall = true;
-                    swapped = true;
-                } else {
-                    var side: Cell = getCell(cell.x-1, cell.y);
-                    if (side && side.gem) {
-                        upper = getCell(side.x, side.y-1);
-                        if (upper && upper.gem && upper.block==0) {
-                            cell.swap(upper);
-
-                            fall = true;
-                            swapped = true;
-                        }
-                    }
-                    if (!swapped) {
-                        side = getCell(cell.x+1, cell.y);
-                        if (side && side.gem) {
-                            upper = getCell(side.x, side.y-1);
-                            if (upper && upper.gem && upper.block==0) {
+        for (var j:int = 1; j <= height; j++) {
+            for (var i:int = 0; i < width; i++) {
+                var cell: Cell = getCell(i, height-j);
+                if (cell) {
+                    if (cell.fillable) {
+                        var upper: Cell = getCell(cell.x, cell.y-1);
+                        var dropped: Boolean = false;
+                        if (upper) {
+                            if (upper.gem && upper.block==0) {
                                 cell.swap(upper);
 
-                                fall = true;
-                                swapped = true;
+                                refill = true;
+                                dropped = true;
+                            } else {
+                                while (upper && upper.fillable) {
+                                    upper = getCell(upper.x, upper.y-1);
+                                }
+                                if (upper && (upper.block>0 || !upper.available)) {
+                                    var side: Cell = getCell(cell.x-1, cell.y);
+                                    if (side && !side.fillable) {
+                                        upper = getCell(side.x, side.y-1);
+                                        if (upper && upper.gem && upper.block==0) {
+                                            cell.swap(upper);
+
+                                            refill = true;
+                                            dropped = true;
+                                        }
+                                    }
+                                    if (!dropped) {
+                                        side = getCell(cell.x+1, cell.y);
+                                        if (side && !side.fillable) {
+                                            upper = getCell(side.x, side.y-1);
+                                            if (upper && upper.gem && upper.block==0) {
+                                                cell.swap(upper);
+
+                                                refill = true;
+                                                dropped = true;
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
+
+                        if (j==height) {
+                            refill = true;
+                        }
+                    } else if (j==height) {
+                        cell.swap(cell);
                     }
                 }
-
-                refill = true;
-            } else if (row==0) {
-                cell.swap(cell);
             }
         }
 
-        if (fall) {
-            _afterFallStateChanged = true;
-
+        if (refill) {
             delayedCall(refillGems, Gem.FALL_TIME);
-
-            var under: Cell = getCell(cell.x, cell.y+1);
-            if (under && !under.gem) {
-                delayedCall(fallGems, Gem.FALL_TIME, row+1);
-            } else {
-                delayedCall(fallGems, Gem.FALL_TIME, row-1);
-            }
+            delayedCall(fallGems, Gem.FALL_TIME);
         } else {
-            if (refill && !retry) {
-                delayedCall(refillGems, Gem.FALL_TIME);
-                delayedCall(fallGems, Gem.FALL_TIME, row, true);
-            } else if (row>0) {
-                fallGems(row-1);
-            } else if (_afterFallStateChanged) {
-                _afterFallStateChanged = false;
-                fallGems(_height-1);
-            } else {
-                delayedCall(checkField, Gem.FALL_TIME);
-            }
+            delayedCall(checkField, Gem.FALL_TIME);
         }
     }
 
     private function refillGems():void {
-        if (!_field) {
-            return;
-        }
-
-        for (var i:int = 0; i < _width; i++) {
+        // TODO: заменить верхний ряд списком клеток входа
+        for (var i:int = 0; i < width; i++) {
             var cell: Cell = getCell(i, 0);
-            if (!cell.gem) {
-                var gem: Gem = Gem.getRandom(true);
+            if (cell && cell.fillable) {
+                var gem: Gem = getRandom(true);
                 cell.setGem(gem);
                 dispatchEventWith(NEW_GEM, false, gem);
             }
         }
     }
 
-    private function addScore(value: int):void {
-        _score += value;
-    }
+    private function shuffleField():void {
+        var gems: Vector.<Gem> = new <Gem>[];
 
-    private function resetField():void {
-        for (var i:int = 0; i < _field.length; i++) {
+        var l: int = _field.length;
+        for (var i:int = 0; i < l; i++) {
             var cell: Cell = _field[i];
-            if (!cell.block) {
-                cell.clear();
+            if (cell.gem && !cell.block) {
+                if (Math.random()<0.5) {
+                    gems.push(cell.gem);
+                } else {
+                    gems.unshift(cell.gem);
+                }
             }
         }
 
-        delayedCall(fallGems, Gem.KILL_TIME, _height-1);
+        for (i = 0; i < l; i++) {
+            cell = _field[i];
+            if (cell.gem && !cell.block) {
+                if (Math.random()<0.5) {
+                    cell.setGem(gems.pop());
+                } else {
+                    cell.setGem(gems.shift());
+                }
+            }
+        }
+    }
+
+    private function addScore(value: int):void {
+        _score += value;
     }
 
     private function getCell(x: int, y: int):Cell {
