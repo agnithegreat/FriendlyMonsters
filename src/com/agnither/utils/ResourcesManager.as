@@ -2,6 +2,8 @@
  * Created by agnither on 30.01.14.
  */
 package com.agnither.utils {
+import flash.filesystem.File;
+
 import starling.events.EventDispatcher;
 import starling.utils.AssetManager;
 
@@ -12,6 +14,9 @@ public class ResourcesManager extends EventDispatcher {
     public static const COMPLETE: String = "complete";
 
     private var _info: DeviceResInfo;
+    public function get frameRate():int {
+        return _info.frameRate;
+    }
 
     private var _preloader: AssetManager;
     public function get preloader():AssetManager {
@@ -23,9 +28,19 @@ public class ResourcesManager extends EventDispatcher {
         return _main;
     }
 
+    private var _game: AssetManager;
+    public function get game():AssetManager {
+        return _game;
+    }
+
     private var _gui: AssetManager;
     public function get gui():AssetManager {
         return _gui;
+    }
+
+    private var _backs: AssetManager;
+    public function get backs():AssetManager {
+        return _backs;
     }
 
     private var _queue: Array = [];
@@ -39,7 +54,9 @@ public class ResourcesManager extends EventDispatcher {
 
         _preloader = new AssetManager(_info.scaleFactor);
         _main = new AssetManager(_info.scaleFactor);
+        _game = new AssetManager(_info.scaleFactor);
         _gui = new AssetManager(_info.scaleFactor);
+        _backs = new AssetManager(_info.scaleFactor);
 
         _loaded = 0;
         _loading = 0;
@@ -65,9 +82,29 @@ public class ResourcesManager extends EventDispatcher {
 
         _main.enqueue(
             "config/config.json",
-            "levels/1.json"
+            "config/gui.json",
+            "levels/levels.json"
         );
         _queue.push(_main);
+    }
+
+    public function loadLevel(path: String):void {
+        _loading++;
+        _main.enqueue("levels/"+path);
+        _queue.push(_main);
+    }
+
+    public function loadGame():void {
+        _loading++;
+
+        _game.enqueue(
+            "textures/"+_info.art+"/game/game.png",
+            "textures/"+_info.art+"/game/game.xml",
+            File.applicationDirectory.resolvePath("textures/"+_info.art+"/particles"),
+            File.applicationDirectory.resolvePath("animations/")
+        );
+        _queue.push(_game);
+
     }
 
     public function loadGUI():void {
@@ -81,11 +118,29 @@ public class ResourcesManager extends EventDispatcher {
         }
         _gui.enqueue(
             "textures/"+_info.art+"/gui/gui.png",
-            "textures/"+_info.art+"/gui/gui.xml",
-            "animations/Charry3.zip"
+            "textures/"+_info.art+"/gui/gui.xml"
         );
         _queue.push(_gui);
 
+    }
+
+    public function loadBacks():void {
+        _loading++;
+
+        _backs.enqueue(File.applicationDirectory.resolvePath("textures/"+_info.art+"/backs/"));
+        _queue.push(_backs);
+    }
+
+    public function reloadBack(name: String):void {
+        _backs.purge();
+        _backs.dispose();
+
+        _loading++;
+
+        _backs.enqueue("textures/"+_info.art+"/backs/"+name+".png");
+        _queue.push(_backs);
+
+        load();
     }
 
     public function load():void {

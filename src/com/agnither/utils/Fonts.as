@@ -8,12 +8,16 @@ public class Fonts {
         "game_counter",
         "game_counter_panel",
         "game_counter_panel_light",
-        "game_score"
-//        "font60",
-//        "font50",
-//        "font34",
-//        "font26",
-//        "font20"
+        "game_moves",
+        "game_moves_small",
+        "game_score",
+
+        "button_green_win",
+        "win_title",
+        "win_percent",
+
+        "lose_counter_green",
+        "lose_counter_red"
     ];
 }
 }

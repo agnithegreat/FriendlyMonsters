@@ -3,14 +3,13 @@ import com.orchideus.monsters.App;
 
 import flash.desktop.NativeApplication;
 import flash.display.Sprite;
-import flash.display3D.Context3DProfile;
 import flash.events.Event;
 import flash.geom.Rectangle;
 import flash.system.Capabilities;
 
 import starling.core.Starling;
 
-[SWF(frameRate="60", width="1024", height="768", backgroundColor="0")]
+[SWF(frameRate="60", width="1136", height="640", backgroundColor="0")]
 public class Main extends Sprite {
 
     private var _starling: Starling;
@@ -28,11 +27,10 @@ public class Main extends Sprite {
         Starling.multitouchEnabled = true;
         Starling.handleLostContext = !ios;
 
-        var artSize: Rectangle = new Rectangle(0, 0, 1024, 768);
+        var artSize: Rectangle = new Rectangle(0, 0, 1136, 640);
         var deviceSize: Rectangle = mobile ? new Rectangle(0, 0, stage.fullScreenWidth, stage.fullScreenHeight) : new Rectangle(0, 0, stage.stageWidth, stage.stageHeight);
 
-        var profile: String = deviceSize.width>1400 ? Context3DProfile.BASELINE_EXTENDED : Context3DProfile.BASELINE_CONSTRAINED;
-        _starling = new Starling(App, stage, null, null, "auto", profile);
+        _starling = new Starling(App, stage, null, null, "auto", "auto");
         _starling.antiAliasing = 0;
         _starling.stage.stageWidth = artSize.width;
         _starling.stage.stageHeight = artSize.height;

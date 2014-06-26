@@ -6,6 +6,8 @@ import com.agnither.ui.Popup;
 import com.agnither.ui.Screen;
 import com.agnither.utils.CommonRefs;
 import com.orchideus.monsters.GameController;
+import com.orchideus.monsters.view.ui.popups.lose.LosePopup;
+import com.orchideus.monsters.view.ui.popups.WinPopup;
 import com.orchideus.monsters.view.ui.screens.GameScreen;
 import com.orchideus.monsters.view.ui.screens.MainScreen;
 
@@ -42,11 +44,14 @@ public class UI extends Screen {
         SCREENS[MainScreen.ID] = new MainScreen(_refs, _controller);
         SCREENS[GameScreen.ID] = new GameScreen(_refs, _controller.game);
 
+        POPUPS[WinPopup.ID] = new WinPopup(_refs);
+        POPUPS[LosePopup.ID] = new LosePopup(_refs);
+
         _container = new Sprite();
         addChild(_container);
 
         _darkness = new Quad(stage.stageWidth, stage.stageHeight, 0, false);
-        _darkness.alpha = 0.5;
+        _darkness.alpha = 0.8;
     }
 
     public function showScreen(id: String):void {

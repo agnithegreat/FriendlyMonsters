@@ -11,6 +11,7 @@ import com.agnither.utils.CommonRefs;
 import flash.geom.Matrix;
 import flash.geom.Point;
 import flash.geom.Point;
+import flash.geom.Rectangle;
 import flash.utils.Dictionary;
 
 import starling.display.Button;
@@ -34,6 +35,7 @@ public class AbstractView extends Sprite {
     protected var _links: Dictionary = new Dictionary();
 
     protected var _defaultPosition: Point;
+    protected var _backSize: Rectangle;
 
     public function AbstractView(refs: CommonRefs) {
         _refs = refs;
@@ -59,21 +61,31 @@ public class AbstractView extends Sprite {
             for (var j:int = 0; j < frL; j++) {
                 var item: Object = frames[j];
 
-                var view: DisplayObject;
+                var view: DisplayObject = null;
                 if (item.type == "bitmap") {
                     var texture: Texture = _refs.gui.getTexture(item.image);
                     view = texture ? new Image(texture) : null;
                     if (view) {
+                        if (item.matrix) {
+                            view.transformationMatrix = new Matrix(item.matrix.a, item.matrix.b, item.matrix.c, item.matrix.d, item.matrix.tx, item.matrix.ty);
+                        }
                         view.touchable = false;
                     }
                 } else if (item.type == "button") {
                     var images: Array = item.images;
                     view = new Button(_refs.gui.getTexture(images[0]), "", images.length>=2 ? _refs.gui.getTexture(images[2]) : null);
                 } else if (item.type == "text") {
-                    view = new TextField(item.width, item.height, item.text, item.fontName, -1, item.fontColor);
-                    view.touchable = false;
-                    (view as TextField).hAlign = item.align;
-    //                (view as TextField).vAlign = "top";
+                    if (item.name.search("_label")<0) {
+                        view = new TextField(item.width, item.height, item.text, item.fontName, -1, 0xFFFFFF);
+                        view.touchable = false;
+                        (view as TextField).hAlign = item.align;
+                    } else {
+                        var link: String = item.name.replace("_label", "_btn");
+                        _links[link].fontName = item.fontName;
+                        _links[link].fontSize = -1;
+                        _links[link].fontColor = 0xFFFFFF;
+                        _links[link].text = item.text;
+                    }
                 } else if (item.type == "movie clip") {
                     view = new Sprite();
                     createFromConfig(item, view as Sprite);
@@ -83,6 +95,10 @@ public class AbstractView extends Sprite {
                     view.y = item.y;
                     container.addChild(view);
                     if (item.name) {
+                        if (item.name == "back") {
+                            _backSize = new Rectangle(item.x, item.y, item.width, item.height);
+                        }
+
                         view.name = item.name;
                         _links[item.name] = view;
                     }
@@ -105,10 +121,13 @@ public class AbstractView extends Sprite {
                     var texture: Texture = _refs.gui.getTexture(item.image);
                     view = texture ? new Image(texture) : null;
                     if (view) {
+                        if (item.matrix) {
+                            view.transformationMatrix = new Matrix(item.matrix.a, item.matrix.b, item.matrix.c, item.matrix.d, item.matrix.tx, item.matrix.ty);
+                        }
                         view.touchable = false;
                     }
                 } else if (item.type == "text") {
-                    view = new TextField(item.width, item.height, item.text, item.fontName, -1, item.fontColor);
+                    view = new TextField(item.width, item.height, item.text, item.fontName, -1, 0xFFFFFF);
                     view.touchable = false;
                     (view as TextField).hAlign = item.align;
 //                    (view as TextField).vAlign = "top";

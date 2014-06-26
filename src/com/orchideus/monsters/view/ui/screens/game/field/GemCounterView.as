@@ -4,16 +4,16 @@
 package com.orchideus.monsters.view.ui.screens.game.field {
 import com.agnither.ui.AbstractView;
 import com.agnither.utils.CommonRefs;
+import com.orchideus.monsters.data.TimingVO;
 import com.orchideus.monsters.model.game.Gem;
 
-import starling.animation.Transitions;
 import starling.core.Starling;
 import starling.events.Event;
 import starling.text.TextField;
 
 public class GemCounterView extends AbstractView {
 
-    public static const REMOVE: String = "remove_GemCounterView";
+    public static const COUNTER: String = "counter_GemCounterView";
 
     private var _gem: Gem;
 
@@ -33,7 +33,7 @@ public class GemCounterView extends AbstractView {
         addChild(_counter);
 
         x = int(_gem.cell.x * CellView.tileWidth);
-        y = _gem.fall ? (_gem.cell.y-1) * CellView.tileHeight : int(_gem.cell.y * CellView.tileHeight);
+        y = int(_gem.cell.y * CellView.tileHeight);
 
         _gem.addEventListener(Gem.UPDATE, handleUpdate);
         _gem.addEventListener(Gem.COUNTER, handleCounter);
@@ -43,27 +43,36 @@ public class GemCounterView extends AbstractView {
     private function handleUpdate(e: Event = null):void {
         var newX: int = _gem.cell.x * CellView.tileWidth;
         var newY: int = _gem.cell.y * CellView.tileHeight;
-        if (e && e.data) {
-            Starling.juggler.tween(this, Gem.SWAP_TIME, {x: newX, y: newY});
-        } else {
-            x = newX;
-            y = newY;
+        if (e) {
+            if (e.data) {
+                Starling.juggler.tween(this, TimingVO.swap, {x: newX, y: newY});
+            } else if (newY > y) {
+                Starling.juggler.tween(this, TimingVO.fall, {x: newX, y: newY});
+            }
         }
     }
 
     private function handleCounter(e: Event):void {
-        _counter.text = _gem.counter>0 ? "+"+_gem.counter : "";
+        if (e.data) {
+            dispatchEventWith(COUNTER, false, e.data);
+        } else {
+            updateCounter();
+        }
+    }
+
+    public function updateCounter():void {
+        if (_counter) {
+            _counter.text = _gem.counter > 0 ? "+" + _gem.counter : "";
+        }
     }
 
     private function handleKill(e: Event):void {
-        remove();
-    }
-
-    private function remove():void {
-        dispatchEventWith(REMOVE, true);
+        destroy();
     }
 
     override public function destroy():void {
+        removeEventListeners(COUNTER);
+
         _gem.removeEventListener(Gem.UPDATE, handleUpdate);
         _gem.removeEventListener(Gem.COUNTER, handleCounter);
         _gem.removeEventListener(Gem.KILL, handleKill);

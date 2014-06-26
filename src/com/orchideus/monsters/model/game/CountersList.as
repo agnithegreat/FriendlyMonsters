@@ -19,6 +19,23 @@ public class CountersList extends EventDispatcher {
         return Boolean(_counterTypes[type]);
     }
 
+    public function get progress():int {
+        var progress: Number = 0;
+        for (var i:int = 0; i < _counters.length; i++) {
+            progress += _counters[i].progress;
+        }
+        return progress/_counters.length * 100;
+    }
+
+    public function get success():Boolean {
+        for (var i:int = 0; i < _counters.length; i++) {
+            if (!_counters[i].completed) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public function CountersList() {
         _counters = new <Counter>[];
         _counterTypes = new Dictionary();

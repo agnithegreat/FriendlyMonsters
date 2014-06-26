@@ -7,23 +7,28 @@
  */
 package com.orchideus.monsters.model.game {
 import com.orchideus.monsters.data.GemVO;
+import com.orchideus.monsters.data.TimingVO;
 
 import starling.events.EventDispatcher;
 
 public class Gem extends EventDispatcher {
 
-    public static var FALL_TIME: Number = 0.05;
-    public static var SWAP_TIME: Number = 0.15;
-    public static var KILL_TIME: Number = 0.3;
-
     public static const UPDATE: String = "update_Gem";
     public static const COUNTER: String = "counter_Gem";
-    public static const LIGHT: String = "light_Gem";
+    public static const HINT: String = "hint_Gem";
+    public static const IDLE: String = "idle_Gem";
     public static const KILL: String = "kill_Gem";
+
+    private static var idleGem: Gem;
 
     private var _gem: GemVO;
     public function get type():String {
         return _gem.type;
+    }
+
+    private var _fixed: Boolean;
+    public function get fixed():Boolean {
+        return _fixed;
     }
 
     public function get points():int {
@@ -40,42 +45,85 @@ public class Gem extends EventDispatcher {
         return _cell;
     }
 
-    private var _light: Boolean;
-    public function get light():Boolean {
-        return _light;
-    }
-
     private var _fall: Boolean;
     public function get fall():Boolean {
         return _fall;
     }
 
-    private var _match: Match;
-    public function get match():Match {
-        return _match;
+    private var _collect: Boolean;
+    public function get collect():Boolean {
+        return _collect;
     }
 
-    public function Gem(id: int, fall: Boolean) {
+    private var _idleTime: Number = 0;
+
+    public function get matchable():Boolean {
+        return true;
+    }
+
+    public function get movable():Boolean {
+        return cell && cell.block==0;
+    }
+
+    public function get allowShuffle():Boolean {
+        return movable;
+    }
+
+    public function Gem(id: int, fall: Boolean, collect: Boolean, fixed: Boolean) {
         _gem = GemVO.GEMS[id];
         _counter = 0;
         _fall = fall;
+        _collect = collect;
+        _fixed = fixed;
+        _idleTime = 10;
     }
 
-    public function place(cell: Cell, swap: Boolean = false, silent: Boolean = false):void {
+    public function place(cell: Cell):void {
         _cell = cell;
 
-        if (!silent) {
-            if (_cell) {
-                dispatchEventWith(UPDATE, false, swap);
-            } else {
-                dispatchEventWith(KILL);
+        setIdle(true);
+    }
+
+    public function move(swap: Boolean = false):void {
+        dispatchEventWith(UPDATE, false, swap);
+    }
+
+    public function kill():void {
+        dispatchEventWith(KILL);
+
+        if (idleGem && idleGem == this) {
+            idleGem = null;
+        }
+    }
+
+    public function addCounter(value: int, from: Cell = null):void {
+        if (cell && !cell.block && matchable && collect) {
+            _counter += value;
+            dispatchEventWith(COUNTER, false, from);
+        }
+    }
+
+    private function setIdle(start: Boolean = false):void {
+        _idleTime = start ? Math.random() * (TimingVO.idle_max - TimingVO.idle_min) : TimingVO.idle_min + Math.random() * (TimingVO.idle_max - TimingVO.idle_min);
+        if (cell && !cell.block) {
+            if (!idleGem) {
+                idleGem = this;
             }
         }
     }
 
-    public function addCounter(value: int):void {
-        _counter += value;
-        dispatchEventWith(COUNTER);
+    public function step(delta: Number):void {
+        _idleTime -= delta;
+
+        if (_idleTime<=0 && cell && !cell.block) {
+            setIdle();
+            if (idleGem && idleGem == this) {
+                idleGem = null;
+                dispatchEventWith(IDLE, false, 2+Math.random()*4);
+            } else {
+                dispatchEventWith(IDLE, false, 1);
+            }
+        }
     }
 
     public function resetCounter():void {
@@ -83,13 +131,11 @@ public class Gem extends EventDispatcher {
         dispatchEventWith(COUNTER);
     }
 
-    public function set light(value: Boolean):void {
-        _light = value;
-        dispatchEventWith(LIGHT);
-    }
-
-    public function set match(value: Match):void {
-        _match = value;
+    public function hint():void {
+        if (cell && !cell.block) {
+            setIdle();
+            dispatchEventWith(HINT);
+        }
     }
 }
 }

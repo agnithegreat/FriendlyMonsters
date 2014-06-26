@@ -6,7 +6,12 @@ import flash.utils.Dictionary;
 
 public class MultiplierVO {
 
-    public static var MULTIPLIERS: Dictionary = new Dictionary();
+    private static var MULTIPLIERS: Dictionary = new Dictionary();
+    private static var count: int = 0;
+
+    public static function getMultiplier(value: int):MultiplierVO {
+        return value>count ? MULTIPLIERS[count] : MULTIPLIERS[value];
+    }
 
     public static function parse(data: Object):void {
         for each (var row: Object in data) {
@@ -15,6 +20,8 @@ public class MultiplierVO {
             multiplier.amount = row.amount;
             multiplier.multiplier = row.multiplier;
             MULTIPLIERS[multiplier.amount] = multiplier;
+
+            count++;
         }
     }
 

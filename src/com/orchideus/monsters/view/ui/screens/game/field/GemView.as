@@ -5,23 +5,28 @@ package com.orchideus.monsters.view.ui.screens.game.field {
 import com.agnither.ui.AbstractView;
 import com.agnither.utils.CommonRefs;
 import com.catalystapps.gaf.display.GAFMovieClip;
+import com.catalystapps.gaf.event.SequenceEvent;
+import com.orchideus.monsters.data.TimingVO;
 import com.orchideus.monsters.model.game.Gem;
 import com.orchideus.monsters.view.ui.Animations;
 
+import flash.geom.Rectangle;
+
 import starling.core.Starling;
-import starling.display.Image;
 import starling.events.Event;
 
 public class GemView extends AbstractView {
 
-    public static const REMOVE: String = "remove_GemView";
+    public static const KILL: String = "kill_GemView";
 
-    private var _gem: Gem;
+    protected var _gem: Gem;
+    public function get gem():Gem {
+        return _gem;
+    }
 
-    private var _hint: Image;
-//    private var _view: Image;
+    private var _animation: GAFMovieClip;
 
-    private var _view: GAFMovieClip;
+    private var _falling: int;
 
     public function GemView(refs:CommonRefs, gem: Gem) {
         _gem = gem;
@@ -30,79 +35,121 @@ public class GemView extends AbstractView {
     }
 
     override protected function initialize():void {
-        _hint = new Image(_refs.gui.getTexture(_gem.type+".png"));
-        _hint.touchable = false;
-        _hint.pivotX = int(_hint.width/2);
-        _hint.pivotY = int(_hint.height/2);
-        _hint.x = int(CellView.tileWidth/2);
-        _hint.y = int(CellView.tileHeight/2);
-        _hint.scaleX = 1.1;
-        _hint.scaleY = 1.1;
-        addChild(_hint);
-
-//        _view = new Image(_refs.gui.getTexture(_gem.type+".png"));
-//        _view.touchable = false;
-//        _view.pivotX = int(_view.width/2);
-//        _view.pivotY = int(_view.height/2);
-//        _view.x = int(CellView.tileWidth/2);
-//        _view.y = int(CellView.tileHeight/2);
-//        addChild(_view);
-
-        _view = new GAFMovieClip(Animations.asset);
-        _view.touchable = false;
-        _view.x = int(CellView.tileWidth/2);
-        _view.y = int(CellView.tileHeight/2);
-        _view.scaleX = 0.7;
-        _view.scaleY = 0.7;
-//        _view.play();
-//        _view.gotoAndPlay("Idle_1");
-        _view.setSequence("Idle_1", true);
-//        _view.setSequence("Idle_1", false);
-        _view.loop = false;
-//        _view.play();
-        addChild(_view);
+        _animation = new GAFMovieClip(Animations.getAsset("monsters", _gem.type));
+        _animation.fps = 24;
+        _animation.touchable = false;
+        _animation.x = int(CellView.tileWidth/2);
+        _animation.y = int(CellView.tileHeight/2);
+        _animation.pivotX = int(_animation.width/2);
+        _animation.pivotY = int(_animation.height/2);
+        addChild(_animation);
+        Starling.juggler.add(_animation);
 
         x = int(_gem.cell.x * CellView.tileWidth);
-        y = _gem.fall ? (_gem.cell.y-1) * CellView.tileHeight : int(_gem.cell.y * CellView.tileHeight);
+        y = int(_gem.cell.y * CellView.tileHeight);
+        _falling = 0;
+
+        if (_gem.fall) {
+            clipRect = new Rectangle(0, 0, CellView.tileWidth, CellView.tileHeight);
+            innerFall();
+        }
 
         _gem.addEventListener(Gem.UPDATE, handleUpdate);
-        _gem.addEventListener(Gem.LIGHT, handleLight);
+        _gem.addEventListener(Gem.HINT, handleHint);
+        _gem.addEventListener(Gem.IDLE, handleIdle);
         _gem.addEventListener(Gem.KILL, handleKill);
+    }
 
-        handleLight(null);
+    private function playState(state: String, listen: Boolean = true):void {
+        if (listen) {
+            _animation.addEventListener(SequenceEvent.TYPE_SEQUENCE_END, handleSequenceEnd);
+        }
+        _animation.setSequence(state);
+    }
+
+    private function handleSequenceEnd(e: Event):void {
+        _animation.removeEventListener(SequenceEvent.TYPE_SEQUENCE_END, handleSequenceEnd);
+        playState("Stop", false);
+    }
+
+    private function innerFall():void {
+        _animation.y -= CellView.tileHeight;
+        _falling++;
+        Starling.juggler.tween(_animation, TimingVO.fall, {y: _animation.y+CellView.tileHeight, onComplete: handleFall});
     }
 
     private function handleUpdate(e: Event = null):void {
         var newX: int = _gem.cell.x * CellView.tileWidth;
         var newY: int = _gem.cell.y * CellView.tileHeight;
-        if (e && e.data) {
-            Starling.juggler.tween(this, Gem.SWAP_TIME, {x: newX, y: newY});
-        } else {
-            x = newX;
-            y = newY;
+        if (e) {
+            if (e.data) {
+                parent.addChild(this);
+                Starling.juggler.tween(this, TimingVO.swap, {x: newX, y: newY});
+            } else if (newY > y) {
+//                if (_falling==0 && _animation) {
+//                    playState("Fall");
+//                }
+                _falling++;
+                Starling.juggler.tween(this, TimingVO.fall+0.01, {x: newX, y: newY, onComplete: handleFall});
+            }
         }
     }
 
-    private function handleLight(e: Event):void {
-        _hint.visible = _gem.light;
+    private function handleFall():void {
+        if (clipRect) {
+            clipRect = null;
+        }
+
+        _falling--;
+        if (_falling == 0 && _animation) {
+            playState("Land");
+        }
+    }
+
+    private function handleHint(e: Event):void {
+        if (_animation) {
+            playState("Jump");
+            parent.addChild(this);
+        }
+    }
+
+    private function handleIdle(e: Event):void {
+        if (_animation) {
+            var id: int = int(e.data);
+            playState("Idle_"+id);
+            parent.addChild(this);
+        }
     }
 
     private function handleKill(e: Event):void {
-        remove();
-    }
+        dispatchEventWith(KILL);
 
-    private function remove():void {
-        dispatchEventWith(REMOVE, true);
+        if (_gem.collect) {
+            destroy();
+        } else {
+//            _animation.setSequence("Vanish");
+//            Starling.juggler.delayCall(destroy, 0.3);
+            Starling.juggler.tween(_animation, TimingVO.kill, {scaleX: 0, scaleY: 0, onComplete: destroy});
+        }
     }
 
     override public function destroy():void {
-        _gem.removeEventListener(Gem.UPDATE, handleUpdate);
-        _gem.removeEventListener(Gem.LIGHT, handleLight);
-        _gem.removeEventListener(Gem.KILL, handleKill);
-        _gem = null;
+        Starling.juggler.removeTweens(_animation);
 
-        removeChild(_view, true);
-        _view = null;
+        removeEventListeners(KILL);
+
+        if (_gem) {
+            _gem.removeEventListener(Gem.UPDATE, handleUpdate);
+            _gem.removeEventListener(Gem.HINT, handleHint);
+            _gem.removeEventListener(Gem.IDLE, handleIdle);
+            _gem.removeEventListener(Gem.KILL, handleKill);
+            _gem = null;
+        }
+
+        if (_animation) {
+            removeChild(_animation, true);
+            _animation = null;
+        }
 
         removeFromParent(true);
 

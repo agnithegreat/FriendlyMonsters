@@ -10,8 +10,13 @@ import com.agnither.utils.DeviceResInfo;
 import com.agnither.utils.ResourcesManager;
 import com.orchideus.monsters.data.BlockVO;
 import com.orchideus.monsters.data.BonusVO;
+import com.orchideus.monsters.data.CountersVO;
+import com.orchideus.monsters.data.DecorVO;
+import com.orchideus.monsters.data.EffectVO;
 import com.orchideus.monsters.data.GemVO;
+import com.orchideus.monsters.data.IngredientVO;
 import com.orchideus.monsters.data.MultiplierVO;
+import com.orchideus.monsters.data.TimingVO;
 import com.orchideus.monsters.view.ui.Animations;
 
 import starling.core.Starling;
@@ -39,6 +44,7 @@ public class App extends Sprite {
 //        _resources.loadPreloader();
         _resources.addEventListener(ResourcesManager.COMPLETE_PHASE, handleComplete);
         _resources.loadMain();
+        _resources.loadGame();
         _resources.loadGUI();
 
         _controller = new GameController(stage, _resources);
@@ -65,19 +71,27 @@ public class App extends Sprite {
 
         GemVO.parse(config.gems);
         BlockVO.parse(config.blocks);
+        IngredientVO.parse(config.ingredients);
+        DecorVO.parse(config.decor);
         MultiplierVO.parse(config.multiplier);
+        CountersVO.parse(config.counters);
         BonusVO.parse(config.bonuses);
+        TimingVO.parse(config.timing);
+        EffectVO.parse(config.effects);
     }
 
     private function handleInit():void {
         _resources.removeEventListener(ResourcesManager.COMPLETE, handleInit);
 
-        Animations.init();
-        Animations.convert(_resources.gui.getByteArray("Charry3"), handleConvert);
+        Animations.init(_resources.game);
+//        Animations.convert("monsters", handleConvert);
+        Animations.convertQueue(EffectVO.animations.concat(["monsters"]), handleConvert);
     }
 
     private function handleConvert(e: * = null):void {
         _controller.ready();
+
+        Starling.juggler.delayCall(_controller.start, 1, 1);
     }
 }
 }

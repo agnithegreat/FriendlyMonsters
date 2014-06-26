@@ -10,7 +10,7 @@ public class DeviceResInfo {
         var info: DeviceResInfo = new DeviceResInfo();
         if (stage.stageWidth==2048) {
             info.art = 2048;
-            info.scaleFactor = 1;
+            info.scaleFactor = 2;
             info.font = 2048;
     //        info.frameRate = 60;
         } else if (stage.stageWidth==1024) {

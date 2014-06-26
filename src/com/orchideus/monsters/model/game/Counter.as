@@ -23,6 +23,10 @@ public class Counter extends EventDispatcher {
         return _target;
     }
 
+    public function get progress():Number {
+        return _amount/_target;
+    }
+
     public function get completed():Boolean {
         return _amount >= _target;
     }

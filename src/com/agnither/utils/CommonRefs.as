@@ -15,6 +15,10 @@ public class CommonRefs {
         return _resources;
     }
 
+    public function get frameRate():int {
+        return _resources.frameRate;
+    }
+
     public function get main():AssetManager {
         return _resources.main;
     }
@@ -23,8 +27,16 @@ public class CommonRefs {
         return _resources.main.getObject("gui");
     }
 
+    public function get game():AssetManager {
+        return _resources.game;
+    }
+
     public function get gui():AssetManager {
         return _resources.gui;
+    }
+
+    public function get backs():AssetManager {
+        return _resources.backs;
     }
 
     public function getString(id: String, replace: Object = null):String {
