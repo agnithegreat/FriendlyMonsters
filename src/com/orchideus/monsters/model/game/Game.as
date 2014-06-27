@@ -64,7 +64,7 @@ public class Game extends EventDispatcher {
     }
 
     private var _gemTypes: GemTypesList;
-    public function getRandom(fall: Boolean, allowIngredient: Boolean):Gem {
+    public function getGem(fall: Boolean, allowIngredient: Boolean, data: Object = null):Gem {
         if (allowIngredient) {
             var ingredient:Ingredient = _ingredients.releaseIngredient();
             if (ingredient) {
@@ -72,9 +72,18 @@ public class Game extends EventDispatcher {
             }
         }
 
-        var rand: int = _gemTypes.getRandom();
-        var collectable: Boolean = _counters.hasCounter(GemVO.GEMS[rand].type);
-        var gem: Gem = new Gem(rand, fall, collectable, false);
+        var gemType: String = data && data.type ? data.type : _gemTypes.getRandom();
+        var collectable: Boolean = _counters.hasCounter(gemType);
+        var gem: Gem;
+
+        var block: BlockVO = BlockVO.BLOCKS[gemType];
+        if (block) {
+            gem = new Block(gemType, collectable);
+        } else {
+            gem = new Gem(gemType, fall, collectable, Boolean(data && data.type));
+        }
+
+        gem.blockRank = data && data.block ? data.block : 0;
         gem.addEventListener(Gem.KILL, handleAddFruit);
         return gem;
     }
@@ -334,11 +343,11 @@ public class Game extends EventDispatcher {
             }
         }
 
-        if (excess && excess.block==0) {
+        if (excess && !excess.blocked) {
             var neighbours: Vector.<Cell> = getNeighbours(excess);
             for (var i:int = 0; i < neighbours.length; i++) {
                 var neighbour: Cell = neighbours[i];
-                if (neighbour.block==0) {
+                if (!neighbour.blocked) {
                     if (cells.indexOf(neighbour)<0 && cells[1].type==neighbour.type) {
                         moves.push(new Move(excess, neighbour));
                     }
@@ -404,7 +413,7 @@ public class Game extends EventDispatcher {
         switch (name) {
             case BonusVO.REMOVE_GEM:
                 if (cell.matchable) {
-                    removeGem(cell);
+                    damageCell(cell);
                     delayedCall(fallGems, TimingVO.kill);
 
                     bonus.selected = false;
@@ -424,7 +433,7 @@ public class Game extends EventDispatcher {
                     for (var i:int = 0; i < width; i++) {
                         var c:Cell = getCell(i, cell.y);
                         if (c.matchable) {
-                            removeGem(c);
+                            damageCell(c);
                         }
                     }
                     delayedCall(fallGems, TimingVO.kill);
@@ -464,7 +473,7 @@ public class Game extends EventDispatcher {
             return;
         }
 
-        if (!cell.gem || cell.block) {
+        if (!cell.gem || cell.blocked) {
             return;
         }
 
@@ -627,8 +636,8 @@ public class Game extends EventDispatcher {
             var match: Match = _matches.pop();
             var change: Cell = match.random;
             if (change) {
-                change.removeGem();
-                change.setGem(getRandom(false, false));
+                change.clear();
+                change.setGem(getGem(false, false));
             }
             match.destroy();
         }
@@ -670,9 +679,9 @@ public class Game extends EventDispatcher {
                 if (move) {
 //                    showEffect(EffectVO.GEM_REMOVE_3, counterTarget, match.cells);
                 }
-
-                addCounters(nearGems, move ? CountersVO.remove_3_move : CountersVO.remove_3, null, counterTarget);
             }
+
+            addCounters(nearGems, move ? CountersVO.remove_3_move : CountersVO.remove_3, null, counterTarget);
 
             delayedCall(clearCells, TimingVO.counter, match.cells);
             match.destroy();
@@ -686,23 +695,24 @@ public class Game extends EventDispatcher {
             var neighbours: Vector.<Cell> = getNeighbours(cell);
             for (var i:int = 0; i < neighbours.length; i++) {
                 var neighbour: Cell = neighbours[i];
-                if (blocks.indexOf(neighbour)<0 && neighbour.blockIsInner) {
+                if (blocks.indexOf(neighbour)<0 && neighbour.gem is Block) {
                     blocks.push(neighbour);
-                    removeGem(neighbour);
+                    damageCell(neighbour);
                 }
             }
-            removeGem(cell);
+            damageCell(cell);
         }
 
         delayedCall(fallGems, TimingVO.kill);
     }
 
-    private function removeGem(cell: Cell):void {
-        if (cell.block) {
-            if (cell.block==1) {
-                _counters.addValue(cell.blockType, 1);
+    private function damageCell(cell: Cell):void {
+        if (cell.blocked) {
+            cell.damage();
+            if (cell.gem is Block && !cell.blocked) {
+                _counters.addValue(cell.gem.type, 1);
+                cell.clear();
             }
-            cell.damageBlock();
         } else if (cell.gem) {
             showEffect(EffectVO.GEM_REMOVE, cell, new <Cell>[cell]);
 
@@ -710,7 +720,7 @@ public class Game extends EventDispatcher {
 
             var m: Number = cell.match ? cell.match.multiplier : 1;
             addScore(m * cell.gem.points);
-            cell.removeGem();
+            cell.clear();
         }
     }
 
@@ -787,9 +797,7 @@ public class Game extends EventDispatcher {
                 var cell: Cell = getCell(i, j);
                 var data: Object = gems[j*height+i];
                 if (cell && cell.available && data) {
-                    var g: int = data.id;
-                    var collectable: Boolean = g ? _counters.hasCounter(GemVO.GEMS[g].type) : false;
-                    var gem: Gem = g ? new Gem(g, false, collectable, true) : getRandom(false, false);
+                    var gem: Gem = getGem(false, false, data);
                     cell.setGem(gem);
                     dispatchEventWith(NEW_GEM, false, gem);
                 }
@@ -818,25 +826,25 @@ public class Game extends EventDispatcher {
                         var upper: Cell = getCell(cell.x, cell.y-1);
                         var dropped: Boolean = false;
                         if (upper && rows[i]>0) {
-                            if (upper.gem && upper.block==0) {
+                            if (upper.gem && !upper.blocked) {
                                 cell.fall(upper);
                                 rows[i]--;
 
                                 dropped = true;
                             } else if (cell.available) {
                                 var enter: Boolean = false;
-                                while (upper && upper.block==0 && !upper.decor) {
+                                while (upper && !upper.blocked && !upper.decor) {
                                     if (upper.enter) {
                                         enter = true;
                                     }
                                     upper = getCell(upper.x, upper.y-1);
                                 }
-                                if (upper && upper.block>0 || !enter) {
+                                if (upper && !upper.blocked || !enter) {
                                     var side: Cell = getCell(cell.x-1, cell.y);
                                     var sideUpper: Cell;
                                     if (side && !side.fillable) {
                                         sideUpper = getCell(side.x, side.y-1);
-                                        if (sideUpper && sideUpper.gem && sideUpper.block==0) {
+                                        if (sideUpper && sideUpper.gem && !sideUpper.blocked) {
                                             cell.fall(sideUpper);
                                             rows[i]--;
 
@@ -847,7 +855,7 @@ public class Game extends EventDispatcher {
                                         side = getCell(cell.x+1, cell.y);
                                         if (side && !side.fillable) {
                                             sideUpper = getCell(side.x, side.y-1);
-                                            if (sideUpper && sideUpper.gem && sideUpper.block==0) {
+                                            if (sideUpper && sideUpper.gem && !sideUpper.blocked) {
                                                 cell.fall(sideUpper);
                                                 rows[i]--;
 
@@ -855,7 +863,7 @@ public class Game extends EventDispatcher {
                                             }
                                         }
                                     }
-                                    if (!dropped && upper && (upper.block>0 || upper.decor)) {
+                                    if (!dropped && upper && (upper.blocked || upper.decor)) {
                                         rows[i] = 0;
                                     }
                                 }
@@ -880,7 +888,7 @@ public class Game extends EventDispatcher {
         for (var i:int = 0; i < l; i++) {
             var cell: Cell = _enterCells[i];
             if (cell && cell.fillable) {
-                var gem: Gem = getRandom(true, cell.ingredient);
+                var gem: Gem = getGem(true, cell.ingredient);
                 cell.setGem(gem);
                 dispatchEventWith(NEW_GEM, false, gem);
 

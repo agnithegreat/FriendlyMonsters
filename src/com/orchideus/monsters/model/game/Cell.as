@@ -6,17 +6,12 @@
  * To change this template use File | Settings | File Templates.
  */
 package com.orchideus.monsters.model.game {
-import com.orchideus.monsters.data.BlockVO;
-import com.orchideus.monsters.data.TimingVO;
-
 import flash.geom.Point;
 
 import starling.events.EventDispatcher;
 
 public class Cell extends EventDispatcher {
 
-    public static const UPDATE: String = "update_Cell";
-    public static const IDLE: String = "idle_Cell";
     public static const SELECT: String = "select_Cell";
 
     private var _position: Point;
@@ -57,7 +52,7 @@ public class Cell extends EventDispatcher {
     }
 
     public function get fillable():Boolean {
-        return !_gem && !blockIsInner && !decor;
+        return !_gem && !decor;
     }
 
     private var _ingredient: Boolean;
@@ -65,17 +60,8 @@ public class Cell extends EventDispatcher {
         return _ingredient;
     }
 
-    private var _blockType: String;
-    public function get blockType():String {
-        return _blockType;
-    }
-    public function get blockIsInner():Boolean {
-        return _blockType && BlockVO.BLOCKS[_blockType].isInner;
-    }
-
-    private var _block: int;
-    public function get block():int {
-        return _block;
+    public function get blocked():Boolean {
+        return _gem && _gem.blocked;
     }
 
     private var _decor: Decor;
@@ -84,10 +70,7 @@ public class Cell extends EventDispatcher {
     }
     public function set decor(value: Decor):void {
         _decor = value;
-        update();
     }
-
-    private var _idleTime: Number = 0;
 
     private var _graphics: Array;
     public function get graphics():Array {
@@ -117,11 +100,7 @@ public class Cell extends EventDispatcher {
         _enter = data.enter;
         _ingredient = data.ingredient;
         _exit = data.exit;
-        _blockType = data.block;
-        _block = data.rank;
         _graphics = data.graphics;
-
-        setIdle();
     }
 
     public function setGem(gem: Gem, swap: Boolean = false, silent: Boolean = false):void {
@@ -133,8 +112,6 @@ public class Cell extends EventDispatcher {
                 _gem.move(swap);
             }
         }
-
-        update();
     }
 
     public function select(value: Boolean):void {
@@ -154,55 +131,24 @@ public class Cell extends EventDispatcher {
         setGem(tempGem, false);
     }
 
-    private function setIdle():void {
-        _idleTime = TimingVO.idle_min + Math.random() * (TimingVO.idle_max - TimingVO.idle_min);
-    }
-
     public function step(delta: Number):void {
-        if (blockIsInner) {
-            _idleTime -= delta;
-
-            if (_idleTime <= 0) {
-                setIdle();
-                dispatchEventWith(IDLE);
-            }
-        } else if (_gem) {
+        if (_gem) {
             _gem.step(delta);
         }
     }
 
-    public function damageBlock():void {
-        if (_block) {
-            _block--;
-            if (_block==0) {
-                _blockType = null;
-            }
+    public function damage():void {
+        if (_gem && _gem.blocked) {
+            _gem.damageBlock();
         }
-
-        update();
-    }
-
-    public function removeGem():void {
-        if (_gem) {
-            _gem.place(null);
-            _gem.kill();
-        }
-        _gem = null;
-
-        update();
     }
 
     public function clear():void {
-        if (_block) {
-            damageBlock();
-        }
         if (_gem) {
-            removeGem();
+            _gem.place(null);
+            _gem.kill();
+            _gem = null;
         }
-    }
-
-    public function update():void {
-        dispatchEventWith(UPDATE);
     }
 }
 }

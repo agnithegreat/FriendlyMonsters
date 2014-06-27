@@ -14,6 +14,7 @@ import starling.events.EventDispatcher;
 public class Gem extends EventDispatcher {
 
     public static const UPDATE: String = "update_Gem";
+    public static const MOVE: String = "move_Gem";
     public static const COUNTER: String = "counter_Gem";
     public static const HINT: String = "hint_Gem";
     public static const IDLE: String = "idle_Gem";
@@ -57,20 +58,31 @@ public class Gem extends EventDispatcher {
 
     private var _idleTime: Number = 0;
 
+    protected var _blockRank: int;
+    public function get blockRank():int {
+        return _blockRank;
+    }
+    public function set blockRank(value: int):void {
+        _blockRank = value;
+    }
+    public function get blocked():Boolean {
+        return _blockRank>0;
+    }
+
     public function get matchable():Boolean {
         return true;
     }
 
     public function get movable():Boolean {
-        return cell && cell.block==0;
+        return _blockRank==0;
     }
 
     public function get allowShuffle():Boolean {
         return movable;
     }
 
-    public function Gem(id: int, fall: Boolean, collect: Boolean, fixed: Boolean) {
-        _gem = GemVO.GEMS[id];
+    public function Gem(type: String, fall: Boolean, collect: Boolean, fixed: Boolean) {
+        _gem = GemVO.GEMS[type];
         _counter = 0;
         _fall = fall;
         _collect = collect;
@@ -85,7 +97,14 @@ public class Gem extends EventDispatcher {
     }
 
     public function move(swap: Boolean = false):void {
-        dispatchEventWith(UPDATE, false, swap);
+        dispatchEventWith(MOVE, false, swap);
+    }
+
+    public function damageBlock():void {
+        if (blocked) {
+            _blockRank--;
+        }
+        update();
     }
 
     public function kill():void {
@@ -97,7 +116,7 @@ public class Gem extends EventDispatcher {
     }
 
     public function addCounter(value: int, from: Cell = null):void {
-        if (cell && !cell.block && matchable && collect) {
+        if (!blocked && matchable && collect) {
             _counter += value;
             dispatchEventWith(COUNTER, false, from);
         }
@@ -105,7 +124,7 @@ public class Gem extends EventDispatcher {
 
     private function setIdle(start: Boolean = false):void {
         _idleTime = start ? Math.random() * (TimingVO.idle_max - TimingVO.idle_min) : TimingVO.idle_min + Math.random() * (TimingVO.idle_max - TimingVO.idle_min);
-        if (cell && !cell.block) {
+        if (!blocked) {
             if (!idleGem) {
                 idleGem = this;
             }
@@ -115,14 +134,20 @@ public class Gem extends EventDispatcher {
     public function step(delta: Number):void {
         _idleTime -= delta;
 
-        if (_idleTime<=0 && cell && !cell.block) {
+        if (_idleTime<=0) {
             setIdle();
             if (idleGem && idleGem == this) {
                 idleGem = null;
-                dispatchEventWith(IDLE, false, 2+Math.random()*4);
+                idle(2+Math.random()*4);
             } else {
-                dispatchEventWith(IDLE, false, 1);
+                idle(1);
             }
+        }
+    }
+
+    public function idle(id: int):void {
+        if (!blocked) {
+            dispatchEventWith(IDLE, false, id);
         }
     }
 
@@ -132,10 +157,14 @@ public class Gem extends EventDispatcher {
     }
 
     public function hint():void {
-        if (cell && !cell.block) {
+        if (!blocked) {
             setIdle();
             dispatchEventWith(HINT);
         }
+    }
+
+    private function update():void {
+        dispatchEventWith(UPDATE);
     }
 }
 }

@@ -9,11 +9,13 @@ import com.catalystapps.gaf.display.GAFMovieClip;
 import com.catalystapps.gaf.event.SequenceEvent;
 import com.orchideus.monsters.data.EffectVO;
 import com.orchideus.monsters.data.TimingVO;
+import com.orchideus.monsters.model.game.Block;
 import com.orchideus.monsters.model.game.Cell;
 import com.orchideus.monsters.model.game.Game;
 import com.orchideus.monsters.model.game.Gem;
 import com.orchideus.monsters.model.game.Ingredient;
 import com.orchideus.monsters.view.ui.Animations;
+import com.orchideus.monsters.view.ui.screens.game.field.BlockView;
 import com.orchideus.monsters.view.ui.screens.game.field.CellUpperView;
 import com.orchideus.monsters.view.ui.screens.game.field.CellView;
 import com.orchideus.monsters.view.ui.screens.game.field.DecorView;
@@ -21,6 +23,7 @@ import com.orchideus.monsters.view.ui.screens.game.field.FieldConstructorView;
 import com.orchideus.monsters.view.ui.screens.game.field.GemCounterView;
 import com.orchideus.monsters.view.ui.screens.game.field.GemPhantomView;
 import com.orchideus.monsters.view.ui.screens.game.field.GemView;
+import com.orchideus.monsters.view.ui.screens.game.field.IceView;
 import com.orchideus.monsters.view.ui.screens.game.field.IngredientView;
 import com.orchideus.monsters.view.ui.screens.game.field.LeafView;
 import com.orchideus.monsters.view.ui.screens.game.panels.GameCountersPanel;
@@ -41,7 +44,6 @@ import starling.events.Event;
 import starling.events.Touch;
 import starling.events.TouchEvent;
 import starling.events.TouchPhase;
-import starling.text.TextField;
 
 public class GameScreen extends Screen {
 
@@ -132,23 +134,37 @@ public class GameScreen extends Screen {
         _back.addChild(new Image(_refs.backs.getTexture(_game.background)));
 
         for (var i:int = 0; i < _game.field.length; i++) {
-            if (_game.field[i].available) {
-                var c:CellView = new CellView(_refs, _game.field[i]);
+            var cell: Cell = _game.field[i];
+            if (cell.available) {
+                var c:CellView = new CellView(_refs, cell);
                 _cells.addChild(c);
 
-                var cu: CellUpperView = new CellUpperView(_refs, _game.field[i]);
-                cu.addEventListener(CellUpperView.REMOVE_BLOCK, handleRemoveBlock);
+                var cu: CellUpperView = new CellUpperView(_refs, cell);
                 _cellsUpper.addChild(cu);
             }
 
-            if (_game.field[i].gem) {
-                var g: GemView = new GemView(_refs, _game.field[i].gem);
-                g.addEventListener(GemView.KILL, handleGemKill);
-                _gems.addChild(g);
+            if (cell.gem) {
+                var gem:AbstractView;
 
-                var gc: GemCounterView = new GemCounterView(_refs, _game.field[i].gem);
-                gc.addEventListener(GemCounterView.COUNTER, handleGemCounter);
-                _counters.addChild(gc);
+                if (cell.gem is Block) {
+                    gem = new BlockView(_refs, cell.gem);
+                    gem.addEventListener(GemView.KILL, handleGemKill);
+                    _gems.addChild(gem);
+                } else {
+                    gem = new GemView(_refs, cell.gem);
+                    gem.addEventListener(GemView.KILL, handleGemKill);
+                    _gems.addChild(gem);
+
+                    if (cell.gem.blocked) {
+                        var ice: IceView = new IceView(_refs, cell.gem);
+                        ice.addEventListener(GemView.KILL, handleGemKill);
+                        _gems.addChild(ice);
+                    }
+
+                    var gc:GemCounterView = new GemCounterView(_refs, cell.gem);
+                    gc.addEventListener(GemCounterView.COUNTER, handleGemCounter);
+                    _counters.addChild(gc);
+                }
             }
         }
 
@@ -164,8 +180,10 @@ public class GameScreen extends Screen {
     }
 
     private function handleNewGem(e: Event):void {
+        var gem:AbstractView;
+
         if (e.data is Ingredient) {
-            var gem:GemView = new IngredientView(_refs, e.data as Gem);
+            gem = new IngredientView(_refs, e.data as Gem);
             gem.addEventListener(GemView.KILL, handleGemKill);
             _gems.addChild(gem);
         } else {
@@ -180,24 +198,22 @@ public class GameScreen extends Screen {
     }
 
     private function handleGemKill(e: Event):void {
-        var target: GemView = e.currentTarget as GemView;
-        var pos: Matrix = target.getTransformationMatrix(this);
+        var target: AbstractView = e.currentTarget as AbstractView;
+        var gem: Gem = e.data as Gem;
 
-        if (target.gem.collect) {
-            var phantom:GemPhantomView = new GemPhantomView(_refs, target.gem);
+        if (gem.collect) {
+            var pos: Matrix = target.getTransformationMatrix(this);
+
+            var phantom:GemPhantomView = new GemPhantomView(_refs, gem);
             _animations.addChild(phantom);
             phantom.x = pos.tx;
             phantom.y = pos.ty;
 
-            var aim:Matrix = _countersPanel.getCounterPosition(target.gem.type, this);
+            var aim:Matrix = _countersPanel.getCounterPosition(gem.type, this);
 
             Starling.juggler.tween(phantom, 0.5, {x: aim.tx, y: aim.ty, onComplete: phantom.destroy});
             updatePanels(0.5);
         }
-    }
-
-    private function handleRemoveBlock(e: Event):void {
-        updatePanels(0);
     }
 
     private function updatePanels(delay: Number):void {
@@ -308,7 +324,7 @@ public class GameScreen extends Screen {
         }
 
         while (_gems.numChildren>0) {
-            var gem: GemView = _gems.getChildAt(0) as GemView;
+            var gem: AbstractView = _gems.getChildAt(0) as AbstractView;
             gem.destroy();
         }
 

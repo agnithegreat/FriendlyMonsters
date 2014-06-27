@@ -24,7 +24,7 @@ public class GemView extends AbstractView {
         return _gem;
     }
 
-    private var _animation: GAFMovieClip;
+    protected var _animation: GAFMovieClip;
 
     private var _falling: int;
 
@@ -38,10 +38,10 @@ public class GemView extends AbstractView {
         _animation = new GAFMovieClip(Animations.getAsset("monsters", _gem.type));
         _animation.fps = 24;
         _animation.touchable = false;
-        _animation.x = int(CellView.tileWidth/2);
-        _animation.y = int(CellView.tileHeight/2);
-        _animation.pivotX = int(_animation.width/2);
-        _animation.pivotY = int(_animation.height/2);
+        _animation.x = int(CellView.tileWidth / 2);
+        _animation.y = int(CellView.tileHeight / 2);
+        _animation.pivotX = int(_animation.width / 2);
+        _animation.pivotY = int(_animation.height / 2);
         addChild(_animation);
         Starling.juggler.add(_animation);
 
@@ -54,7 +54,7 @@ public class GemView extends AbstractView {
             innerFall();
         }
 
-        _gem.addEventListener(Gem.UPDATE, handleUpdate);
+        _gem.addEventListener(Gem.MOVE, handleMove);
         _gem.addEventListener(Gem.HINT, handleHint);
         _gem.addEventListener(Gem.IDLE, handleIdle);
         _gem.addEventListener(Gem.KILL, handleKill);
@@ -78,7 +78,7 @@ public class GemView extends AbstractView {
         Starling.juggler.tween(_animation, TimingVO.fall, {y: _animation.y+CellView.tileHeight, onComplete: handleFall});
     }
 
-    private function handleUpdate(e: Event = null):void {
+    private function handleMove(e: Event = null):void {
         var newX: int = _gem.cell.x * CellView.tileWidth;
         var newY: int = _gem.cell.y * CellView.tileHeight;
         if (e) {
@@ -108,25 +108,22 @@ public class GemView extends AbstractView {
 
     private function handleHint(e: Event):void {
         if (_animation) {
-            playState("Jump");
             parent.addChild(this);
+            playState("Jump");
         }
     }
 
     private function handleIdle(e: Event):void {
-        if (_animation) {
-            var id: int = int(e.data);
-            playState("Idle_"+id);
-            parent.addChild(this);
-        }
+        parent.addChild(this);
+        playState("Idle_"+int(e.data));
     }
 
     private function handleKill(e: Event):void {
-        dispatchEventWith(KILL);
+        dispatchEventWith(KILL, false, _gem);
 
         if (_gem.collect) {
             destroy();
-        } else {
+        } else if (_animation) {
 //            _animation.setSequence("Vanish");
 //            Starling.juggler.delayCall(destroy, 0.3);
             Starling.juggler.tween(_animation, TimingVO.kill, {scaleX: 0, scaleY: 0, onComplete: destroy});
@@ -139,7 +136,7 @@ public class GemView extends AbstractView {
         removeEventListeners(KILL);
 
         if (_gem) {
-            _gem.removeEventListener(Gem.UPDATE, handleUpdate);
+            _gem.removeEventListener(Gem.MOVE, handleMove);
             _gem.removeEventListener(Gem.HINT, handleHint);
             _gem.removeEventListener(Gem.IDLE, handleIdle);
             _gem.removeEventListener(Gem.KILL, handleKill);
@@ -147,6 +144,7 @@ public class GemView extends AbstractView {
         }
 
         if (_animation) {
+            Starling.juggler.remove(_animation);
             removeChild(_animation, true);
             _animation = null;
         }

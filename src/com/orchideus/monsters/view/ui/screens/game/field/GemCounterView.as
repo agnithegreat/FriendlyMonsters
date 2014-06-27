@@ -35,12 +35,12 @@ public class GemCounterView extends AbstractView {
         x = int(_gem.cell.x * CellView.tileWidth);
         y = int(_gem.cell.y * CellView.tileHeight);
 
-        _gem.addEventListener(Gem.UPDATE, handleUpdate);
+        _gem.addEventListener(Gem.MOVE, handleMove);
         _gem.addEventListener(Gem.COUNTER, handleCounter);
         _gem.addEventListener(Gem.KILL, handleKill);
     }
 
-    private function handleUpdate(e: Event = null):void {
+    private function handleMove(e: Event = null):void {
         var newX: int = _gem.cell.x * CellView.tileWidth;
         var newY: int = _gem.cell.y * CellView.tileHeight;
         if (e) {
@@ -73,7 +73,7 @@ public class GemCounterView extends AbstractView {
     override public function destroy():void {
         removeEventListeners(COUNTER);
 
-        _gem.removeEventListener(Gem.UPDATE, handleUpdate);
+        _gem.removeEventListener(Gem.MOVE, handleMove);
         _gem.removeEventListener(Gem.COUNTER, handleCounter);
         _gem.removeEventListener(Gem.KILL, handleKill);
         _gem = null;
