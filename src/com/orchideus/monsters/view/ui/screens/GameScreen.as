@@ -131,7 +131,12 @@ public class GameScreen extends Screen {
     private function handleInit(e: Event):void {
         _game.addEventListener(Game.NEW_GEM, handleNewGem);
 
-        _back.addChild(new Image(_refs.backs.getTexture(_game.background)));
+        var back: Image = new Image(_refs.backs.getTexture(_game.background));
+        var scale: Number = stage.stageHeight/back.height;
+        back.scaleX = scale;
+        back.scaleY = scale;
+        back.x = (stage.stageWidth-back.width)/2;
+        _back.addChild(back);
 
         for (var i:int = 0; i < _game.field.length; i++) {
             var cell: Cell = _game.field[i];
@@ -173,6 +178,9 @@ public class GameScreen extends Screen {
             var decor: DecorView = new DecorView(_refs, _game.decors[i]);
             _cellsUpper.addChild(decor);
         }
+
+        _fieldContainer.x = (stage.stageWidth-_fieldContainer.width)/2;
+        _fieldContainer.y = (stage.stageHeight-_fieldContainer.height)/2;
     }
 
     private function handleUpdate(e: Event):void {
@@ -223,6 +231,7 @@ public class GameScreen extends Screen {
 
     private function handleEffect(e: Event):void {
         var effect: EffectVO = e.data.effect;
+
         var target: Object = e.data.target;
 
         var pos: Point = new Point();
@@ -252,6 +261,7 @@ public class GameScreen extends Screen {
             animation.pivotY = int(animation.height/2);
             animation.loop = false;
             animation.play();
+            Starling.juggler.add(animation);
             _effects.addChild(animation);
         }
     }
@@ -262,6 +272,7 @@ public class GameScreen extends Screen {
     }
     private function handleRemoveAnimation(e: SequenceEvent):void {
         var animation: GAFMovieClip = e.currentTarget as GAFMovieClip;
+        Starling.juggler.remove(animation);
         _effects.removeChild(animation, true);
     }
 

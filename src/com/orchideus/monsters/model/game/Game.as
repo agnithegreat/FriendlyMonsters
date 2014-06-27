@@ -218,6 +218,7 @@ public class Game extends EventDispatcher {
         _ingredients.clear();
 
         _bonuses.clear();
+        _selectedBonus = null;
 
         dispatchEventWith(CLEAR);
 
@@ -660,30 +661,41 @@ public class Game extends EventDispatcher {
             var nearGems: Vector.<Cell> = getNearGems(match);
 
             var counterTarget: Cell = move ? match.getMoveCell(move) : match.getRandomCell();
+            var counters: Boolean;
 
             if (match.baseLength>=5) {
-//                showEffect(EffectVO.GEM_REMOVE_5, counterTarget, match.cells);
+                showEffect(EffectVO.GEM_REMOVE_5, counterTarget, match.cells);
 
                 var cells: Vector.<Cell> = getGemsOfType(match.type);
-                addCounters(cells, CountersVO.remove_5, match.type, counterTarget);
+                var hasCounters: Boolean = addCounters(cells, CountersVO.remove_5, match.type, counterTarget);
+                if (hasCounters) {
+                    counters = hasCounters;
+                }
+
                 delayedCall(clearCells, TimingVO.counter, cells);
             } else if (match.corner) {
-//                showEffect(EffectVO.GEM_REMOVE_CORNER, counterTarget, match.cells);
+                showEffect(EffectVO.GEM_REMOVE_CORNER, counterTarget, match.cells);
 
-                addCounters(_field, CountersVO.remove_corner, match.type, counterTarget);
+                hasCounters = addCounters(_field, CountersVO.remove_corner, match.type, counterTarget);
+                if (hasCounters) {
+                    counters = hasCounters;
+                }
             } else if (match.amount==4) {
-//                showEffect(EffectVO.GEM_REMOVE_4, counterTarget, match.cells);
+                showEffect(EffectVO.GEM_REMOVE_4, counterTarget, match.cells);
 
-                addCounters(nearGems, CountersVO.remove_4, null, counterTarget);
+                hasCounters = addCounters(nearGems, CountersVO.remove_4, null, counterTarget);
+                if (hasCounters) {
+                    counters = hasCounters;
+                }
             } else if (match.amount==3) {
                 if (move) {
-//                    showEffect(EffectVO.GEM_REMOVE_3, counterTarget, match.cells);
+                    showEffect(EffectVO.GEM_REMOVE_3, counterTarget, match.cells);
                 }
             }
 
             addCounters(nearGems, move ? CountersVO.remove_3_move : CountersVO.remove_3, null, counterTarget);
 
-            delayedCall(clearCells, TimingVO.counter, match.cells);
+            delayedCall(clearCells, counters ? TimingVO.counter : 0, match.cells);
             match.destroy();
         }
     }
@@ -734,7 +746,9 @@ public class Game extends EventDispatcher {
         }
     }
 
-    private function addCounters(cells: Vector.<Cell>, value: int, type: String = null, from: Cell = null):void {
+    private function addCounters(cells: Vector.<Cell>, value: int, type: String = null, from: Cell = null):Boolean {
+        var counter: Boolean;
+
         var l: int = cells.length;
         for (var i:int = 0; i < l; i++) {
             var cell: Cell = cells[i];
@@ -742,14 +756,18 @@ public class Game extends EventDispatcher {
                 if (type) {
                     if (cell.type == type) {
                         cell.gem.addCounter(value, from);
+                        counter = true;
                     }
                 } else {
                     if (_counters.hasCounter(cell.type)) {
                         cell.gem.addCounter(value, from);
+                        counter = true;
                     }
                 }
             }
         }
+
+        return counter;
     }
 
     private function getGemsOfType(type: String):Vector.<Cell> {

@@ -33,6 +33,9 @@ public class GameMenuPanel extends AbstractView {
         _game.addEventListener(Game.INIT, handleInit);
         _game.addEventListener(Game.CLEAR, handleClear);
 
+        x = stage.stageWidth;
+        y = stage.stageHeight;
+
         visible = false;
     }
 

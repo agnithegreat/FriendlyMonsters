@@ -9,7 +9,7 @@ import flash.system.Capabilities;
 
 import starling.core.Starling;
 
-[SWF(frameRate="60", width="1136", height="640", backgroundColor="0")]
+[SWF(frameRate="60", width="1024", height="768", backgroundColor="0")]
 public class Main extends Sprite {
 
     private var _starling: Starling;
@@ -27,13 +27,8 @@ public class Main extends Sprite {
         Starling.multitouchEnabled = true;
         Starling.handleLostContext = !ios;
 
-        var artSize: Rectangle = new Rectangle(0, 0, 1136, 640);
-        var deviceSize: Rectangle = mobile ? new Rectangle(0, 0, stage.fullScreenWidth, stage.fullScreenHeight) : new Rectangle(0, 0, stage.stageWidth, stage.stageHeight);
-
         _starling = new Starling(App, stage, null, null, "auto", "auto");
         _starling.antiAliasing = 0;
-        _starling.stage.stageWidth = artSize.width;
-        _starling.stage.stageHeight = artSize.height;
         _starling.showStats = true;
         _starling.simulateMultitouch = false;
         _starling.enableErrorChecking = Capabilities.isDebugger;
